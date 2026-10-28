@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    /* Charcoal, Ivory, Vermilion Palette */
+    --color-charcoal-950: #0D0F12;
+    --color-charcoal-900: #13161A;
+    --color-charcoal-850: #1A1E24;
+    --color-charcoal-800: #222730;
+    --color-charcoal-700: #2E3541;
+    --color-charcoal-600: #424C5D;
+    --color-charcoal-500: #626F84;
+    --color-charcoal-400: #8C99AE;
+    --color-charcoal-300: #BAC3D2;
+    --color-charcoal-200: #E2E6EE;
+    
+    --color-ivory-50: #FBFBF8;
+    --color-ivory-100: #F8F7F2;
+    --color-ivory-200: #F1EFE8;
+    --color-ivory-300: #E6E2D5;
+    --color-ivory-400: #D8D2C2;
+    --color-ivory-500: #C2BAA7;
+
+    --color-vermilion: #E3432B;
+    --color-vermilion-hover: #C93520;
+    --color-vermilion-active: #B02B18;
+    --color-vermilion-light: #FEECE9;
+    --color-vermilion-soft: #FFF5F3;
+    --color-vermilion-border: #F8B6AB;
+  }
+
+  /* Strict zero border radius across entire application */
+  *, *::before, *::after {
+    border-radius: 0 !important;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-ivory-100);
+    color: var(--color-charcoal-850);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Sharp custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1EFE8;
+}
+::-webkit-scrollbar-thumb {
+  background: #8C99AE;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #424C5D;
+}
