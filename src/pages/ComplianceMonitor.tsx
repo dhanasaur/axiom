@@ -1,25 +1,30 @@
 import React, { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
+import { mockApi } from '../services/mockApi'
 import {
   ShieldCheck,
   FileCheck,
   AlertTriangle,
   Clock,
   Search,
-  CheckCircle2,
-  ExternalLink,
   ShieldAlert,
+  Loader2,
 } from 'lucide-react'
 import { DocumentUrgencyBadge, ObligationBadge } from '../components/Common/StatusBadge'
+import { CountUp } from '../components/Common/CountUp'
 import { DocumentUrgency, ObligationStatus } from '../types'
 
 export const ComplianceMonitor: React.FC = () => {
   const { documents, obligations, updateDocumentStatus, updateObligationStatus } = useApp()
+  const { success } = useToast()
 
   const [activeSubTab, setActiveSubTab] = useState<'documents' | 'obligations'>('documents')
   const [urgencyFilter, setUrgencyFilter] = useState<DocumentUrgency | 'All'>('All')
   const [obligationStatusFilter, setObligationStatusFilter] = useState<ObligationStatus | 'All'>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [loadingActionId, setLoadingActionId] = useState<string | null>(null)
 
   // Documents sorted by urgency: Expired first, then lowest daysUntilExpiry
   const sortedDocuments = useMemo(() => {
@@ -66,33 +71,62 @@ export const ComplianceMonitor: React.FC = () => {
   ).length
   const overdueObsCount = obligations.filter((o) => o.status === 'Overdue').length
 
+  const handleVerifyDoc = async (id: string, name: string) => {
+    setLoadingActionId(id)
+    try {
+      await mockApi.verifyDocument(id, 'Verified')
+      updateDocumentStatus(id, 'Verified')
+      setLoadingActionId(null)
+      success('Statutory Document Verified', `${name} verified and approved.`)
+    } catch {
+      setLoadingActionId(null)
+    }
+  }
+
+  const handleUpdateObligation = async (id: string, title: string, status: ObligationStatus) => {
+    setLoadingActionId(id)
+    try {
+      await mockApi.updateObligation(id, status)
+      updateObligationStatus(id, status)
+      setLoadingActionId(null)
+      success(`Undertaking Marked ${status}`, `${title} compliance status updated.`)
+    } catch {
+      setLoadingActionId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-[#1A1E24] text-white p-6 border border-[#2E3541] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-[#1A1E24] text-white p-6 rounded-xl border border-[#2E3541] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-[#E3432B] text-white">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-display uppercase font-semibold tracking-wider px-2 py-0.5 rounded bg-[#E3432B] text-white">
               National Compliance Watch
             </span>
             <span className="text-xs text-[#8C99AE] font-mono">/ 90-60-30 Day Surveillance</span>
           </div>
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-[#FAF9F5] uppercase">
+          <h1 className="text-xl md:text-2xl font-display font-extrabold tracking-tight text-[#FAF9F5] uppercase">
             Compliance & Document Validity Monitor
           </h1>
-          <p className="text-xs text-[#8C99AE] mt-1">
+          <p className="text-xs text-[#8C99AE] mt-1 font-sans">
             Centralized register across all technical institutions tracking statutory lease deeds, fire NOCs, 
             joint FDR renewals, and biometric faculty rosters.
           </p>
         </div>
 
         {/* Tab switchers */}
-        <div className="flex items-center bg-[#242B35] p-1 border border-[#2E3541]">
+        <div className="flex items-center bg-[#242B35] p-1 rounded-lg border border-[#2E3541] shadow-inner">
           <button
             onClick={() => setActiveSubTab('documents')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-display font-bold uppercase tracking-wider transition-all ${
               activeSubTab === 'documents'
-                ? 'bg-[#E3432B] text-white'
+                ? 'bg-[#E3432B] text-white shadow-sm'
                 : 'text-[#BAC3D2] hover:text-white'
             }`}
           >
@@ -101,9 +135,9 @@ export const ComplianceMonitor: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveSubTab('obligations')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-display font-bold uppercase tracking-wider transition-all ${
               activeSubTab === 'obligations'
-                ? 'bg-[#E3432B] text-white'
+                ? 'bg-[#E3432B] text-white shadow-sm'
                 : 'text-[#BAC3D2] hover:text-white'
             }`}
           >
@@ -111,97 +145,113 @@ export const ComplianceMonitor: React.FC = () => {
             <span>Undertakings ({obligations.length})</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Countdown Urgency System Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div
+      {/* Countdown Urgency System Metric Cards with CountUp */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => {
             setActiveSubTab('documents')
             setUrgencyFilter('Expired')
           }}
-          className="p-4 bg-white border border-[#F8B6AB] border-l-4 border-l-[#E3432B] cursor-pointer"
+          className="p-4 bg-white rounded-xl border border-[#F8B6AB] border-l-4 border-l-[#E3432B] cursor-pointer shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#E3432B]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#E3432B]">
               Expired Documents
             </span>
-            <ShieldAlert className="w-4 h-4 text-[#E3432B]" />
+            <span className="p-1.5 rounded-md bg-[#FEECE9] text-[#E3432B]">
+              <ShieldAlert className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#E3432B]">
-            {expiredDocsCount} Documents
+            <CountUp value={expiredDocsCount} /> Documents
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Immediate show-cause threshold
           </span>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => {
             setActiveSubTab('documents')
             setUrgencyFilter('Critical (<30d)')
           }}
-          className="p-4 bg-white border border-[#FDE68A] border-l-4 border-l-[#D97706] cursor-pointer"
+          className="p-4 bg-white rounded-xl border border-[#FDE68A] border-l-4 border-l-[#D97706] cursor-pointer shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#D97706]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#D97706]">
               Critical Window (&lt;30 Days)
             </span>
-            <AlertTriangle className="w-4 h-4 text-[#D97706]" />
+            <span className="p-1.5 rounded-md bg-[#FEF3C7] text-[#D97706]">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {critical30DocsCount} Documents
+            <CountUp value={critical30DocsCount} /> Documents
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Automated SMS alert dispatched
           </span>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => {
             setActiveSubTab('documents')
             setUrgencyFilter('Approaching (30-60d)')
           }}
-          className="p-4 bg-white border border-[#E6E2D5] border-l-4 border-l-[#CA8A04] cursor-pointer"
+          className="p-4 bg-white rounded-xl border border-[#E6E2D5] border-l-4 border-l-[#CA8A04] cursor-pointer shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#CA8A04]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#CA8A04]">
               Approaching (30–60 Days)
             </span>
-            <Clock className="w-4 h-4 text-[#CA8A04]" />
+            <span className="p-1.5 rounded-md bg-[#FEF9C3] text-[#CA8A04]">
+              <Clock className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {approaching60DocsCount} Documents
+            <CountUp value={approaching60DocsCount} /> Documents
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Pre-notice renewal stage
           </span>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => {
             setActiveSubTab('obligations')
             setObligationStatusFilter('Overdue')
           }}
-          className="p-4 bg-white border border-[#FCA5A5] border-l-4 border-l-[#E3432B] cursor-pointer"
+          className="p-4 bg-white rounded-xl border border-[#FCA5A5] border-l-4 border-l-[#E3432B] cursor-pointer shadow-xs"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#E3432B]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#E3432B]">
               Overdue Undertakings
             </span>
-            <AlertTriangle className="w-4 h-4 text-[#E3432B]" />
+            <span className="p-1.5 rounded-md bg-[#FEECE9] text-[#E3432B]">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {overdueObsCount} Undertakings
+            <CountUp value={overdueObsCount} /> Undertakings
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             FDR & AEBAS non-compliance
           </span>
-        </div>
+        </motion.div>
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-white border border-[#E6E2D5]">
+      <div className="bg-white rounded-xl border border-[#E6E2D5] shadow-xs overflow-hidden">
         {/* Table Filters */}
         <div className="p-4 border-b border-[#F1EFE8] bg-[#FAF9F5] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="relative w-full sm:w-80">
@@ -211,18 +261,18 @@ export const ComplianceMonitor: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by title, institution, or reference..."
-              className="w-full bg-white pl-9 pr-3 py-2 border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B]"
+              className="w-full bg-white pl-9 pr-3 py-2 rounded-lg border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B] font-sans"
             />
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
             {activeSubTab === 'documents' ? (
               <div className="flex items-center gap-2">
-                <span className="text-[#626F84] font-bold uppercase tracking-wider text-[11px]">Urgency:</span>
+                <span className="text-[#626F84] font-display font-bold uppercase tracking-wider text-[11px]">Urgency:</span>
                 <select
                   value={urgencyFilter}
                   onChange={(e) => setUrgencyFilter(e.target.value as any)}
-                  className="bg-white px-3 py-2 border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B]"
+                  className="bg-white px-3 py-2 rounded-lg border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B] font-sans"
                 >
                   <option value="All">All Validity Tiers</option>
                   <option value="Expired">Expired (&lt;0d)</option>
@@ -234,11 +284,11 @@ export const ComplianceMonitor: React.FC = () => {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-[#626F84] font-bold uppercase tracking-wider text-[11px]">Status:</span>
+                <span className="text-[#626F84] font-display font-bold uppercase tracking-wider text-[11px]">Status:</span>
                 <select
                   value={obligationStatusFilter}
                   onChange={(e) => setObligationStatusFilter(e.target.value as any)}
-                  className="bg-white px-3 py-2 border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B]"
+                  className="bg-white px-3 py-2 rounded-lg border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B] font-sans"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Open">Open</option>
@@ -256,7 +306,7 @@ export const ComplianceMonitor: React.FC = () => {
                   setObligationStatusFilter('All')
                   setSearchQuery('')
                 }}
-                className="text-xs text-[#E3432B] hover:underline font-bold uppercase"
+                className="text-xs text-[#E3432B] hover:underline font-display font-bold uppercase tracking-wider"
               >
                 Reset
               </button>
@@ -266,17 +316,17 @@ export const ComplianceMonitor: React.FC = () => {
 
         {/* Tab 1: Documents Validity Table */}
         {activeSubTab === 'documents' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[600px]">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-[#FAF9F5] border-b border-[#E6E2D5] text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
-                  <th className="py-3.5 px-4">Institution Name</th>
-                  <th className="py-3.5 px-4">Statutory Document & Ref</th>
-                  <th className="py-3.5 px-4">Issuing Authority</th>
-                  <th className="py-3.5 px-4">Expiry Date</th>
-                  <th className="py-3.5 px-4">Validity Countdown</th>
-                  <th className="py-3.5 px-4">Verification</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+              <thead className="sticky top-0 z-10 bg-[#FAF9F5] border-b border-[#E6E2D5] shadow-xs">
+                <tr className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-[#626F84]">
+                  <th className="py-3 px-4">Institution Name</th>
+                  <th className="py-3 px-4">Statutory Document & Ref</th>
+                  <th className="py-3 px-4">Issuing Authority</th>
+                  <th className="py-3 px-4">Expiry Date</th>
+                  <th className="py-3 px-4">Validity Countdown</th>
+                  <th className="py-3 px-4">Verification</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1EFE8]">
@@ -287,21 +337,27 @@ export const ComplianceMonitor: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  sortedDocuments.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-[#FAF9F5] transition-colors">
+                  sortedDocuments.map((doc, idx) => (
+                    <motion.tr
+                      key={doc.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, delay: idx * 0.02 }}
+                      className="hover:bg-[#FAF9F5] transition-colors"
+                    >
                       <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-bold text-[#13161A] leading-snug">{doc.institutionName}</div>
+                        <div className="font-display font-bold text-[#13161A] leading-snug">{doc.institutionName}</div>
                         <span className="font-mono text-[10px] text-[#8C99AE]">{doc.institutionId}</span>
                       </td>
 
                       <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-semibold text-[#13161A]">{doc.documentName}</div>
+                        <div className="font-semibold text-[#13161A] font-sans">{doc.documentName}</div>
                         <div className="font-mono text-[10px] text-[#626F84] mt-0.5">
                           Ref: {doc.docReferenceNo} / {doc.category}
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 text-[#424C5D]">{doc.issuingAuthority}</td>
+                      <td className="py-3.5 px-4 text-[#424C5D] font-sans">{doc.issuingAuthority}</td>
 
                       <td className="py-3.5 px-4 font-mono font-medium text-[#13161A]">
                         {doc.expiryDate}
@@ -316,7 +372,7 @@ export const ComplianceMonitor: React.FC = () => {
 
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-block px-2 py-0.5 text-xs font-semibold ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             doc.verificationStatus === 'Verified'
                               ? 'bg-[#EBF7F0] text-[#166534]'
                               : doc.verificationStatus === 'Rejected'
@@ -329,29 +385,21 @@ export const ComplianceMonitor: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {doc.verificationStatus !== 'Verified' && (
-                            <button
-                              onClick={() => updateDocumentStatus(doc.id, 'Verified')}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#16A34A] text-white hover:bg-[#15803D] uppercase"
-                            >
-                              Verify
-                            </button>
-                          )}
+                        {doc.verificationStatus !== 'Verified' && (
                           <button
-                            onClick={() =>
-                              alert(
-                                `[Demo Preview] Statutory Document Dossier:\n\nDocument: ${doc.documentName}\nIssuing Authority: ${doc.issuingAuthority}\nValid Until: ${doc.expiryDate} (${doc.daysUntilExpiry} days)\nFile Size: ${doc.fileSize}`
-                              )
-                            }
-                            className="p-1.5 text-[#626F84] hover:text-[#13161A] hover:bg-[#F1EFE8]"
-                            title="Inspect file"
+                            onClick={() => handleVerifyDoc(doc.id, doc.documentName)}
+                            disabled={loadingActionId === doc.id}
+                            className="px-3 py-1 rounded text-[11px] font-display font-bold bg-[#16A34A] text-white hover:bg-[#15803D] uppercase flex items-center gap-1 ml-auto"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            {loadingActionId === doc.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              'Verify'
+                            )}
                           </button>
-                        </div>
+                        )}
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))
                 )}
               </tbody>
@@ -359,59 +407,65 @@ export const ComplianceMonitor: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 2: Compliance Undertakings Table */}
+        {/* Tab 2: Obligations Table */}
         {activeSubTab === 'obligations' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[600px]">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-[#FAF9F5] border-b border-[#E6E2D5] text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
-                  <th className="py-3.5 px-4">Institution Name</th>
-                  <th className="py-3.5 px-4">Mandatory Undertaking</th>
-                  <th className="py-3.5 px-4">Statutory Clause</th>
-                  <th className="py-3.5 px-4">Due Date</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+              <thead className="sticky top-0 z-10 bg-[#FAF9F5] border-b border-[#E6E2D5] shadow-xs">
+                <tr className="text-[11px] font-display font-semibold uppercase tracking-[0.08em] text-[#626F84]">
+                  <th className="py-3 px-4">Institution Name</th>
+                  <th className="py-3 px-4">Statutory Mandate</th>
+                  <th className="py-3 px-4">Mandate Reference</th>
+                  <th className="py-3 px-4">Due Date</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1EFE8]">
                 {sortedObligations.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-[#8C99AE]">
-                      No statutory undertakings matched your filter criteria.
+                      No statutory undertakings matched your current criteria.
                     </td>
                   </tr>
                 ) : (
-                  sortedObligations.map((ob) => (
-                    <tr key={ob.id} className="hover:bg-[#FAF9F5] transition-colors">
+                  sortedObligations.map((ob, idx) => (
+                    <motion.tr
+                      key={ob.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, delay: idx * 0.02 }}
+                      className="hover:bg-[#FAF9F5] transition-colors"
+                    >
                       <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-bold text-[#13161A] leading-snug">{ob.institutionName}</div>
-                        <span className="font-mono text-[10px] text-[#8C99AE]">{ob.category}</span>
+                        <div className="font-display font-bold text-[#13161A] leading-snug">{ob.institutionName}</div>
+                        <span className="font-mono text-[10px] text-[#8C99AE]">{ob.institutionId}</span>
                       </td>
 
-                      <td className="py-3.5 px-4 max-w-sm">
-                        <div className="font-bold text-[#13161A]">{ob.title}</div>
-                        <p className="text-[11px] text-[#626F84] mt-0.5 line-clamp-1">{ob.description}</p>
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <div className="font-semibold text-[#13161A] font-sans">{ob.title}</div>
+                        <div className="text-[11px] text-[#626F84] mt-0.5 font-sans">{ob.description}</div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-[#424C5D]">
+                      <td className="py-3.5 px-4 font-mono text-xs text-[#424C5D]">
                         {ob.mandateReference}
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="font-mono font-bold text-[#13161A] block">{ob.dueDate}</span>
+                        <span className="font-mono font-medium text-[#13161A] block">{ob.dueDate}</span>
                         <span
-                          className={`text-[10px] font-bold uppercase ${
+                          className={`text-[10px] font-bold block uppercase ${
                             ob.daysRemaining < 0
                               ? 'text-[#E3432B]'
                               : ob.daysRemaining <= 10
                               ? 'text-[#D97706]'
                               : 'text-[#16A34A]'
-                        }`}
-                      >
-                        {ob.daysRemaining < 0
-                          ? `${Math.abs(ob.daysRemaining)}d overdue`
-                          : `${ob.daysRemaining}d remaining`}
-                      </span>
+                          }`}
+                        >
+                          {ob.daysRemaining < 0
+                            ? `${Math.abs(ob.daysRemaining)}d overdue`
+                            : `${ob.daysRemaining}d left`}
+                        </span>
                       </td>
 
                       <td className="py-3.5 px-4">
@@ -419,48 +473,27 @@ export const ComplianceMonitor: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {ob.status === 'Open' && (
-                            <button
-                              onClick={() => updateObligationStatus(ob.id, 'Submitted')}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#2563EB] text-white hover:bg-[#1D4ED8] uppercase"
-                            >
-                              Submit
-                            </button>
-                          )}
-                          {ob.status !== 'Verified' && (
-                            <button
-                              onClick={() => updateObligationStatus(ob.id, 'Verified')}
-                              className="px-2.5 py-1 text-[11px] font-bold bg-[#16A34A] text-white hover:bg-[#15803D] uppercase"
-                            >
-                              Verify
-                            </button>
-                          )}
-                          {ob.status === 'Verified' && (
-                            <span className="text-[11px] text-[#16A34A] font-bold font-mono">
-                              [VERIFIED]
-                            </span>
-                          )}
-                        </div>
+                        {ob.status !== 'Verified' && (
+                          <button
+                            onClick={() => handleUpdateObligation(ob.id, ob.title, 'Verified')}
+                            disabled={loadingActionId === ob.id}
+                            className="px-3 py-1 rounded text-[11px] font-display font-bold bg-[#16A34A] text-white hover:bg-[#15803D] uppercase flex items-center gap-1 ml-auto"
+                          >
+                            {loadingActionId === ob.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              'Verify Proof'
+                            )}
+                          </button>
+                        )}
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
         )}
-
-        {/* Legend / Info bar without bullet emojis */}
-        <div className="p-3 bg-[#FAF9F5] border-t border-[#E6E2D5] flex flex-wrap items-center justify-between text-xs text-[#626F84] gap-2">
-          <span className="font-mono text-[11px] uppercase">AICTE Statutory Validity Surveillance Engine</span>
-          <div className="flex items-center gap-3 text-[11px] font-mono uppercase font-bold">
-            <span className="text-[#E3432B]">[CRITICAL &lt;30D]</span>
-            <span className="text-[#D97706]">[APPROACHING 30–60D]</span>
-            <span className="text-[#CA8A04]">[MODERATE 60–90D]</span>
-            <span className="text-[#16A34A]">[VALID &gt;90D]</span>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import {
   CalendarDays,
@@ -14,6 +15,7 @@ import {
   List,
   Video,
 } from 'lucide-react'
+import { CountUp } from '../components/Common/CountUp'
 
 export const EvcSchedule: React.FC = () => {
   const { evcSchedules } = useApp()
@@ -21,6 +23,12 @@ export const EvcSchedule: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Due This Week' | 'Overdue' | 'Scheduled' | 'Completed'>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 300)
+    return () => clearTimeout(timer)
+  }, [])
 
   const filteredSchedules = useMemo(() => {
     return evcSchedules.filter((item) => {
@@ -44,29 +52,34 @@ export const EvcSchedule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-[#1A1E24] text-white p-6 border border-[#2E3541] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-[#1A1E24] text-white p-6 rounded-xl border border-[#2E3541] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-[#E3432B] text-white">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-display uppercase font-semibold tracking-wider px-2 py-0.5 rounded bg-[#E3432B] text-white">
               Expert Visit Committee (EVC)
             </span>
             <span className="text-xs text-[#8C99AE] font-mono">/ Peer Inspection Oversight</span>
           </div>
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-[#FAF9F5] uppercase">
+          <h1 className="text-xl md:text-2xl font-display font-extrabold tracking-tight text-[#FAF9F5] uppercase">
             EVC Schedule & On-Site Inspection Tracker
           </h1>
-          <p className="text-xs text-[#8C99AE] mt-1">
+          <p className="text-xs text-[#8C99AE] mt-1 font-sans">
             Tracking peer evaluations, geo-tagged verification, and automated escalation flags for delayed committee reports.
           </p>
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center bg-[#242B35] p-1 border border-[#2E3541]">
+        <div className="flex items-center bg-[#242B35] p-1 rounded-lg border border-[#2E3541] shadow-inner">
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-display font-bold uppercase tracking-wider transition-all ${
               viewMode === 'list'
-                ? 'bg-[#E3432B] text-white'
+                ? 'bg-[#E3432B] text-white shadow-sm'
                 : 'text-[#BAC3D2] hover:text-white'
             }`}
           >
@@ -75,9 +88,9 @@ export const EvcSchedule: React.FC = () => {
           </button>
           <button
             onClick={() => setViewMode('calendar')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-display font-bold uppercase tracking-wider transition-all ${
               viewMode === 'calendar'
-                ? 'bg-[#E3432B] text-white'
+                ? 'bg-[#E3432B] text-white shadow-sm'
                 : 'text-[#BAC3D2] hover:text-white'
             }`}
           >
@@ -85,79 +98,91 @@ export const EvcSchedule: React.FC = () => {
             <span>Timeline</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Summary Chips */}
+      {/* Summary Chips with Staggered Count-Ups */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => setStatusFilter(statusFilter === 'Overdue' ? 'All' : 'Overdue')}
-          className={`p-4 bg-white border cursor-pointer transition-all ${
+          className={`p-4 bg-white rounded-xl border cursor-pointer transition-all shadow-xs ${
             statusFilter === 'Overdue'
-              ? 'border-[#E3432B] border-l-4 border-l-[#E3432B]'
+              ? 'border-[#E3432B] border-l-4 border-l-[#E3432B] ring-1 ring-[#E3432B]/20'
               : 'border-[#E6E2D5] hover:border-[#E3432B]'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#E3432B]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#E3432B]">
               Overdue Inspections
             </span>
-            <AlertTriangle className="w-4 h-4 text-[#E3432B]" />
+            <span className="p-1.5 rounded-md bg-[#FEECE9] text-[#E3432B]">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {overdueCount} Committees
+            <CountUp value={overdueCount} /> Committees
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Escalation dispatched to Zonal RO
           </span>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => setStatusFilter(statusFilter === 'Due This Week' ? 'All' : 'Due This Week')}
-          className={`p-4 bg-white border cursor-pointer transition-all ${
+          className={`p-4 bg-white rounded-xl border cursor-pointer transition-all shadow-xs ${
             statusFilter === 'Due This Week'
-              ? 'border-[#D97706] border-l-4 border-l-[#D97706]'
+              ? 'border-[#D97706] border-l-4 border-l-[#D97706] ring-1 ring-[#D97706]/20'
               : 'border-[#E6E2D5] hover:border-[#D97706]'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#D97706]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#D97706]">
               Due This Week
             </span>
-            <Clock className="w-4 h-4 text-[#D97706]" />
+            <span className="p-1.5 rounded-md bg-[#FEF3C7] text-[#D97706]">
+              <Clock className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {dueThisWeekCount} Visits Active
+            <CountUp value={dueThisWeekCount} /> Visits Active
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Quorum and logistics verified
           </span>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => setStatusFilter(statusFilter === 'Scheduled' ? 'All' : 'Scheduled')}
-          className={`p-4 bg-white border cursor-pointer transition-all ${
+          className={`p-4 bg-white rounded-xl border cursor-pointer transition-all shadow-xs ${
             statusFilter === 'Scheduled'
-              ? 'border-[#2563EB] border-l-4 border-l-[#2563EB]'
+              ? 'border-[#2563EB] border-l-4 border-l-[#2563EB] ring-1 ring-[#2563EB]/20'
               : 'border-[#E6E2D5] hover:border-[#2563EB]'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#2563EB]">
+            <span className="text-xs font-display font-bold uppercase tracking-wider text-[#2563EB]">
               Upcoming Scheduled
             </span>
-            <CalendarDays className="w-4 h-4 text-[#2563EB]" />
+            <span className="p-1.5 rounded-md bg-[#DBEAFE] text-[#2563EB]">
+              <CalendarDays className="w-4 h-4" />
+            </span>
           </div>
           <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
-            {scheduledCount} Pipelines
+            <CountUp value={scheduledCount} /> Pipelines
           </div>
-          <span className="text-[11px] text-[#8C99AE] mt-1 block">
+          <span className="text-[11px] text-[#8C99AE] mt-1 block font-sans">
             Next 14 business days
           </span>
-        </div>
+        </motion.div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 border border-[#E6E2D5] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div className="bg-white p-4 rounded-xl border border-[#E6E2D5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-[#8C99AE] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -165,16 +190,16 @@ export const EvcSchedule: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search institution, committee chair..."
-            className="w-full bg-[#FAF9F5] pl-9 pr-3 py-2 border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B]"
+            className="w-full bg-[#FAF9F5] pl-9 pr-3 py-2 rounded-lg border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B] font-sans"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-[#626F84] font-bold uppercase tracking-wider text-[11px]">Filter:</span>
+          <span className="text-[#626F84] font-display font-bold uppercase tracking-wider text-[11px]">Filter:</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-[#FAF9F5] px-3 py-2 border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B]"
+            className="bg-[#FAF9F5] px-3 py-2 rounded-lg border border-[#D8D2C2] focus:outline-none focus:border-[#E3432B] font-sans"
           >
             <option value="All">All Schedules</option>
             <option value="Due This Week">Due This Week</option>
@@ -189,15 +214,18 @@ export const EvcSchedule: React.FC = () => {
       {viewMode === 'list' && (
         <div className="space-y-3">
           {filteredSchedules.length === 0 ? (
-            <div className="p-12 text-center bg-white border border-[#E6E2D5] text-[#8C99AE]">
+            <div className="p-12 text-center bg-white rounded-xl border border-[#E6E2D5] text-[#8C99AE]">
               <CalendarDays className="w-10 h-10 text-[#D8D2C2] mx-auto mb-2" />
-              <p className="font-bold text-[#13161A] uppercase">No EVC schedules matching your criteria.</p>
+              <p className="font-display font-bold text-[#13161A] uppercase">No EVC schedules matching your criteria.</p>
             </div>
           ) : (
-            filteredSchedules.map((evc) => (
-              <div
+            filteredSchedules.map((evc, idx) => (
+              <motion.div
                 key={evc.id}
-                className={`bg-white border p-5 transition-all ${
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: idx * 0.04 }}
+                className={`bg-white rounded-xl border p-5 transition-all shadow-xs hover:shadow-md ${
                   evc.isEscalated
                     ? 'border-[#FCA5A5] bg-[#FFFBFB] border-l-4 border-l-[#E3432B]'
                     : evc.status === 'Due This Week'
@@ -209,12 +237,12 @@ export const EvcSchedule: React.FC = () => {
                   {/* Left: Institution and EVC Details */}
                   <div className="space-y-2 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-[#F1EFE8] text-[#13161A] border border-[#E6E2D5]">
+                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-[#F1EFE8] text-[#13161A] border border-[#E6E2D5]">
                         {evc.applicationNumber}
                       </span>
-                      <span className="text-[10px] text-[#626F84]">{evc.region}</span>
+                      <span className="text-[10px] text-[#626F84] font-sans">{evc.region}</span>
                       <span
-                        className={`text-xs font-bold px-2 py-0.5 uppercase tracking-wider ${
+                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                           evc.status === 'Completed'
                             ? 'bg-[#EBF7F0] text-[#166534]'
                             : evc.status === 'Overdue'
@@ -227,19 +255,19 @@ export const EvcSchedule: React.FC = () => {
                         {evc.status}
                       </span>
                       {evc.isEscalated && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-[#E3432B] text-white uppercase tracking-wider">
-                          <ShieldAlert className="w-3 h-3" />
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#E3432B] text-white uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white pulse-ring-alert" />
                           Escalated
                         </span>
                       )}
                     </div>
 
-                    <h3 className="text-base font-bold text-[#13161A] uppercase">
+                    <h3 className="text-base font-display font-bold text-[#13161A] uppercase">
                       {evc.institutionName}
                     </h3>
 
                     {/* Mode and Campus Address */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#626F84]">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#626F84] font-sans">
                       <span className="flex items-center gap-1">
                         {evc.mode === 'Physical On-Site' ? (
                           <MapPin className="w-3.5 h-3.5 text-[#E3432B]" />
@@ -253,19 +281,19 @@ export const EvcSchedule: React.FC = () => {
                     </div>
 
                     {/* Committee roster */}
-                    <div className="mt-3 p-3 bg-[#FAF9F5] border border-[#F1EFE8] text-xs space-y-1">
-                      <div className="text-[11px] font-bold text-[#13161A] flex items-center gap-1.5 uppercase">
+                    <div className="mt-3 p-3.5 bg-[#FAF9F5] rounded-lg border border-[#F1EFE8] text-xs space-y-1">
+                      <div className="text-[11px] font-display font-bold text-[#13161A] flex items-center gap-1.5 uppercase">
                         <Users className="w-3.5 h-3.5 text-[#E3432B]" />
                         Chairman: {evc.committeeChairman}
                       </div>
-                      <div className="text-[11px] text-[#626F84] pl-5">
+                      <div className="text-[11px] text-[#626F84] pl-5 font-sans">
                         {evc.committeeMembers.join(' / ')}
                       </div>
                     </div>
 
                     {evc.isEscalated && evc.escalationReason && (
-                      <div className="p-3 bg-[#FEECE9] border border-[#F8B6AB] text-xs text-[#991B1B]">
-                        <strong>Escalation Note:</strong> {evc.escalationReason}
+                      <div className="p-3.5 rounded-lg bg-[#FEECE9] border border-[#F8B6AB] text-xs text-[#991B1B] font-sans">
+                        <strong className="font-display uppercase">Escalation Note:</strong> {evc.escalationReason}
                       </div>
                     )}
                   </div>
@@ -273,7 +301,7 @@ export const EvcSchedule: React.FC = () => {
                   {/* Right: Date and Action */}
                   <div className="flex lg:flex-col items-center lg:items-end justify-between gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#F1EFE8]">
                     <div className="text-left lg:text-right">
-                      <span className="text-[10px] text-[#8C99AE] block uppercase tracking-wider font-bold">
+                      <span className="text-[10px] text-[#8C99AE] block uppercase tracking-wider font-display font-bold">
                         Scheduled Date
                       </span>
                       <span className="font-mono font-extrabold text-lg text-[#13161A] block">
@@ -298,14 +326,14 @@ export const EvcSchedule: React.FC = () => {
 
                     <button
                       onClick={() => navigate(`/applications/${evc.applicationId}`)}
-                      className="px-4 py-2 bg-[#1A1E24] hover:bg-[#E3432B] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                      className="px-4 py-2 rounded-lg bg-[#1A1E24] hover:bg-[#E3432B] text-white text-xs font-display font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-xs"
                     >
                       <span>Open Case</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
@@ -313,20 +341,20 @@ export const EvcSchedule: React.FC = () => {
 
       {/* Calendar View Mode */}
       {viewMode === 'calendar' && (
-        <div className="bg-white border border-[#E6E2D5] p-6 space-y-4">
+        <div className="bg-white rounded-xl border border-[#E6E2D5] p-6 space-y-4 shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-[#F1EFE8]">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#13161A]">
+            <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[#13161A]">
               Inspection Timeline (October – November 2026)
             </h3>
             <span className="text-xs text-[#8C99AE] font-mono">APH 3-day report window</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {filteredSchedules.map((item) => (
               <div
                 key={item.id}
                 onClick={() => navigate(`/applications/${item.applicationId}`)}
-                className={`p-4 border transition-all cursor-pointer ${
+                className={`p-4 rounded-xl border transition-all cursor-pointer shadow-xs hover:shadow-md ${
                   item.isEscalated
                     ? 'border-[#FCA5A5] bg-[#FFFBFB] border-t-4 border-t-[#E3432B]'
                     : item.status === 'Completed'
@@ -337,7 +365,7 @@ export const EvcSchedule: React.FC = () => {
                 <div className="flex items-center justify-between text-xs mb-2">
                   <span className="font-mono font-bold text-[#E3432B]">{item.scheduledDate}</span>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.2 uppercase ${
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                       item.daysUntilEvc < 0
                         ? 'bg-[#FEECE9] text-[#E3432B]'
                         : item.daysUntilEvc <= 3
@@ -349,11 +377,11 @@ export const EvcSchedule: React.FC = () => {
                   </span>
                 </div>
 
-                <h4 className="font-bold text-xs text-[#13161A] line-clamp-2 leading-tight uppercase">
+                <h4 className="font-display font-bold text-xs text-[#13161A] line-clamp-2 leading-tight uppercase">
                   {item.institutionName}
                 </h4>
 
-                <div className="mt-3 pt-2 border-t border-[#E6E2D5] text-[11px] text-[#626F84] space-y-1">
+                <div className="mt-3 pt-2.5 border-t border-[#E6E2D5] text-[11px] text-[#626F84] space-y-1 font-sans">
                   <div className="truncate">Chair: {item.committeeChairman.split(' (')[0]}</div>
                   <div className="text-[10px] text-[#8C99AE] font-mono">{item.mode}</div>
                 </div>

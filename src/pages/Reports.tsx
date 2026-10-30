@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   ResponsiveContainer,
   BarChart,
@@ -16,7 +16,11 @@ import {
   AreaChart,
   Area,
 } from 'recharts'
-import { Download } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Download, Loader2 } from 'lucide-react'
+import { mockApi } from '../services/mockApi'
+import { useToast } from '../context/ToastContext'
+import { CountUp } from '../components/Common/CountUp'
 
 // 1. Application Pendency by Region
 const regionPendencyData = [
@@ -58,94 +62,173 @@ const stageDistributionData = [
   { name: 'Post-Approval', value: 10, color: '#16A34A' },
 ]
 
+// Custom Recharts Dark Tooltip
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#13161A] border border-[#2E3541] rounded-lg p-3 shadow-xl text-white text-xs min-w-36">
+        <p className="font-display font-bold text-[#E2E6EE] border-b border-[#2E3541] pb-1 mb-2">
+          {label}
+        </p>
+        <div className="space-y-1">
+          {payload.map((entry: any, index: number) => (
+            <div key={`item-${index}`} className="flex items-center justify-between gap-3 text-[11px]">
+              <span className="flex items-center gap-1.5 text-[#BAC3D2]">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: entry.color || entry.stroke || entry.fill }}
+                />
+                {entry.name}:
+              </span>
+              <span className="font-mono font-bold text-white">
+                {entry.value}
+                {entry.unit || ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
 export const Reports: React.FC = () => {
+  const { success, error } = useToast()
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Export action calling mockApi with simulated network failure and retry
+  const handleExportDigest = async () => {
+    setIsExporting(true)
+    try {
+      const res = await mockApi.exportStatutoryDigest()
+      setIsExporting(false)
+      success(
+        'Statutory Digest Generated',
+        `File ${res.filename} is ready for download. PDF compiled with all zonal figures.`
+      )
+    } catch (err: any) {
+      setIsExporting(false)
+      error(
+        'Export Gateway Exception',
+        err.message || 'Failed to compile AICTE PDF Digest.',
+        {
+          label: 'Retry Export',
+          onClick: () => handleExportDigest(),
+        }
+      )
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-[#1A1E24] text-white p-6 border border-[#2E3541] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="bg-[#1A1E24] text-white p-6 rounded-xl border border-[#2E3541] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-[#E3432B] text-white">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-display uppercase font-semibold tracking-wider px-2 py-0.5 rounded bg-[#E3432B] text-white">
               Regulatory Analytics
             </span>
             <span className="text-xs text-[#8C99AE] font-mono">/ Executive Bureau Intelligence</span>
           </div>
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-[#FAF9F5] uppercase">
+          <h1 className="text-xl md:text-2xl font-display font-extrabold tracking-tight text-[#FAF9F5] uppercase">
             AICTE Statutory Analytics & Pendency Reports
           </h1>
-          <p className="text-xs text-[#8C99AE] mt-1">
+          <p className="text-xs text-[#8C99AE] mt-1 font-sans">
             Cross-zonal statistical indicators across scrutiny turnarounds, EVC completion quotas, and compliance enforcement.
           </p>
         </div>
 
-        <button
-          onClick={() =>
-            alert(
-              '[Demo Export] Generating AICTE AY 2026-27 Executive Summary Dossier (PDF format) with charts and zonal statistics...'
-            )
-          }
-          className="px-4 py-2.5 bg-[#E3432B] hover:bg-[#C93520] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors self-start md:self-auto"
+        {/* Mutating Action Button with deliberate delay and error handling */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleExportDigest}
+          disabled={isExporting}
+          className="px-4 py-2.5 rounded-lg bg-[#E3432B] hover:bg-[#C93520] disabled:opacity-60 text-white text-xs font-display font-bold uppercase tracking-wider flex items-center gap-2 transition-colors self-start md:self-auto shadow-sm"
         >
-          <Download className="w-4 h-4" />
-          <span>Export Statutory Digest</span>
-        </button>
-      </div>
+          {isExporting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Compiling PDF Digest...</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              <span>Export Statutory Digest</span>
+            </>
+          )}
+        </motion.button>
+      </motion.div>
 
-      {/* High-level statutory KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-4 bg-white border border-[#E6E2D5]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
+      {/* High-level statutory KPI cards with CountUp */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 bg-white rounded-xl border border-[#E6E2D5] shadow-xs">
+          <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#626F84]">
             National Applications Total
           </span>
-          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">1,180</div>
-          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block">
+          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
+            <CountUp value="1,180" />
+          </div>
+          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block font-mono">
             +14.2% YoY Growth
           </span>
         </div>
 
-        <div className="p-4 bg-white border border-[#E6E2D5]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
+        <div className="p-4 bg-white rounded-xl border border-[#E6E2D5] shadow-xs">
+          <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#626F84]">
             Median Scrutiny Turnaround
           </span>
-          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">11.4 Days</div>
-          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block">
+          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
+            <CountUp value="11.4" /> Days
+          </div>
+          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block font-mono">
             Target: &lt;14 Days (Compliant)
           </span>
         </div>
 
-        <div className="p-4 bg-white border border-[#E6E2D5]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
+        <div className="p-4 bg-white rounded-xl border border-[#E6E2D5] shadow-xs">
+          <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#626F84]">
             Overall EVC Success Rate
           </span>
-          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">94.2%</div>
-          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block">
+          <div className="mt-2 text-2xl font-extrabold font-mono text-[#13161A]">
+            <CountUp value="94.2" />%
+          </div>
+          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block font-mono">
             358 of 380 inspections completed
           </span>
         </div>
 
-        <div className="p-4 bg-white border border-[#E6E2D5]">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#626F84]">
+        <div className="p-4 bg-white rounded-xl border border-[#E6E2D5] shadow-xs">
+          <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#626F84]">
             Overdue Undertakings Ratio
           </span>
-          <div className="mt-2 text-2xl font-extrabold font-mono text-[#E3432B]">2.8%</div>
-          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block">
+          <div className="mt-2 text-2xl font-extrabold font-mono text-[#E3432B]">
+            <CountUp value="2.8" />%
+          </div>
+          <span className="text-[11px] text-[#16A34A] font-bold mt-1 block font-mono">
             Down from 8.1% in May
           </span>
         </div>
       </div>
 
-      {/* Grid of Charts */}
+      {/* Grid of Animated Charts with Custom Tooltips */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Chart 1: Application Pendency by Region */}
-        <div className="bg-white p-5 border border-[#E6E2D5] space-y-3">
+        <div className="bg-white p-5 rounded-xl border border-[#E6E2D5] space-y-3 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-[#F1EFE8]">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#13161A]">
+              <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[#13161A]">
                 Application Pendency by Regional Office (RO)
               </h3>
-              <p className="text-xs text-[#626F84]">On-track vs Approaching vs Overdue caseloads</p>
+              <p className="text-xs text-[#626F84] font-sans">On-track vs Approaching vs Overdue caseloads</p>
             </div>
-            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 border border-[#E6E2D5]">
+            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 rounded border border-[#E6E2D5]">
               ZONAL DATA
             </span>
           </div>
@@ -156,40 +239,32 @@ export const Reports: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
                 <XAxis
                   dataKey="region"
-                  tick={{ fontSize: 10, fill: '#626F84' }}
+                  tick={{ fontSize: 10, fill: '#626F84', fontFamily: 'Inter' }}
                   angle={-20}
                   textAnchor="end"
                   interval={0}
                 />
-                <YAxis tick={{ fontSize: 11, fill: '#626F84' }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1A1E24',
-                    border: '1px solid #2E3541',
-                    borderRadius: '0px',
-                    color: '#FAF9F5',
-                    fontSize: '11px',
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="onTrack" name="On Track" fill="#16A34A" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="approaching" name="Approaching" fill="#D97706" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="overdue" name="Overdue" fill="#E3432B" radius={[0, 0, 0, 0]} />
+                <YAxis tick={{ fontSize: 11, fill: '#626F84', fontFamily: 'JetBrains Mono' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', fontFamily: 'Inter' }} />
+                <Bar dataKey="onTrack" name="On Track" fill="#16A34A" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="approaching" name="Approaching" fill="#D97706" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="overdue" name="Overdue" fill="#E3432B" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Chart 2: Overdue Undertakings Trend (Last 6 Months) */}
-        <div className="bg-white p-5 border border-[#E6E2D5] space-y-3">
+        <div className="bg-white p-5 rounded-xl border border-[#E6E2D5] space-y-3 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-[#F1EFE8]">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#13161A]">
+              <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[#13161A]">
                 Overdue Undertakings & Resolution Trend
               </h3>
-              <p className="text-xs text-[#626F84]">Last 6 Months (May – October 2026)</p>
+              <p className="text-xs text-[#626F84] font-sans">Last 6 Months (May – October 2026)</p>
             </div>
-            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 border border-[#E6E2D5]">
+            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 rounded border border-[#E6E2D5]">
               MONTHLY VELOCITY
             </span>
           </div>
@@ -198,33 +273,25 @@ export const Reports: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={overdueTrendData} margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#626F84' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#626F84' }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1A1E24',
-                    border: '1px solid #2E3541',
-                    borderRadius: '0px',
-                    color: '#FAF9F5',
-                    fontSize: '11px',
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#626F84', fontFamily: 'Inter' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#626F84', fontFamily: 'JetBrains Mono' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', fontFamily: 'Inter' }} />
                 <Line
                   type="monotone"
                   dataKey="overdue"
                   name="Overdue Undertakings"
                   stroke="#E3432B"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
+                  strokeWidth={2.5}
+                  dot={{ r: 3.5, strokeWidth: 1 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="resolved"
                   name="Resolved & Verified"
                   stroke="#16A34A"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
+                  strokeWidth={2.5}
+                  dot={{ r: 3.5, strokeWidth: 1 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -232,15 +299,15 @@ export const Reports: React.FC = () => {
         </div>
 
         {/* Chart 3: EVC Completion Quota Rate */}
-        <div className="bg-white p-5 border border-[#E6E2D5] space-y-3">
+        <div className="bg-white p-5 rounded-xl border border-[#E6E2D5] space-y-3 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-[#F1EFE8]">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#13161A]">
+              <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[#13161A]">
                 EVC Completion Quota Rate (%)
               </h3>
-              <p className="text-xs text-[#626F84]">Peer inspection turnarounds by month</p>
+              <p className="text-xs text-[#626F84] font-sans">Peer inspection turnarounds by month</p>
             </div>
-            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 border border-[#E6E2D5]">
+            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 rounded border border-[#E6E2D5]">
               EFFICIENCY %
             </span>
           </div>
@@ -248,27 +315,24 @@ export const Reports: React.FC = () => {
           <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={evcCompletionData} margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="evcGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#E3432B" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#E3432B" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1EFE8" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#626F84' }} />
-                <YAxis domain={[80, 100]} tick={{ fontSize: 11, fill: '#626F84' }} unit="%" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1A1E24',
-                    border: '1px solid #2E3541',
-                    borderRadius: '0px',
-                    color: '#FAF9F5',
-                    fontSize: '11px',
-                  }}
-                  formatter={(value: any) => [`${value}%`, 'Completion Rate']}
-                />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#626F84', fontFamily: 'Inter' }} />
+                <YAxis domain={[80, 100]} tick={{ fontSize: 11, fill: '#626F84', fontFamily: 'JetBrains Mono' }} unit="%" />
+                <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="rate"
                   name="Completion Rate (%)"
                   stroke="#E3432B"
-                  strokeWidth={2}
-                  fillOpacity={0.2}
-                  fill="#E3432B"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#evcGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -276,15 +340,15 @@ export const Reports: React.FC = () => {
         </div>
 
         {/* Chart 4: Stage Distribution Donut */}
-        <div className="bg-white p-5 border border-[#E6E2D5] space-y-3">
+        <div className="bg-white p-5 rounded-xl border border-[#E6E2D5] space-y-3 shadow-xs">
           <div className="flex items-center justify-between pb-2 border-b border-[#F1EFE8]">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#13161A]">
+              <h3 className="text-xs font-display font-bold uppercase tracking-wider text-[#13161A]">
                 National Workflow Stage Distribution (%)
               </h3>
-              <p className="text-xs text-[#626F84]">Active share of cases per statutory stage</p>
+              <p className="text-xs text-[#626F84] font-sans">Active share of cases per statutory stage</p>
             </div>
-            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 border border-[#E6E2D5]">
+            <span className="text-[10px] font-mono bg-[#FAF9F5] px-2 py-1 rounded border border-[#E6E2D5]">
               100% TOTAL
             </span>
           </div>
@@ -298,7 +362,7 @@ export const Reports: React.FC = () => {
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
-                  paddingAngle={2}
+                  paddingAngle={3}
                   dataKey="value"
                   label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={false}
@@ -307,15 +371,7 @@ export const Reports: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1A1E24',
-                    border: '1px solid #2E3541',
-                    borderRadius: '0px',
-                    color: '#FAF9F5',
-                    fontSize: '11px',
-                  }}
-                />
+                <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
